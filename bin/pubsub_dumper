@@ -1,0 +1,46 @@
+#!/usr/bin/env ruby
+
+require 'google/cloud/pubsub'
+
+pubsub = Google::Cloud::PubSub.new
+
+topic_name, subscription_name, start, stop = ARGV
+abort 'usage: pubsub_dumper topic subscription [start-utc] [stop-utc]' unless ARGV.size >= 2
+
+topic = pubsub.topic(topic_name)
+abort 'no such topic' unless topic
+subscription = topic.subscription(subscription_name)
+subscription ||= topic.subscribe(subscription_name, retain_acked: true)
+
+start_time = start && Time.utc(*start.scan(/\d+/).map(&:to_i))
+start_time ||= Time.new - 604800
+stop_time = stop && Time.utc(*stop.scan(/\d+/).map(&:to_i))
+subscription.seek(start_time)
+
+concurrency = 10
+
+queue = Queue.new
+
+threads = concurrency.times.map do
+  Thread.start do
+    loop do
+      messages = subscription.pull(max: 1000)
+      in_range_messages, out_range_messages = messages.partition do |message|
+        !(stop_time && message.publish_time >= stop_time)
+      end
+      queue << in_range_messages.map(&:data).join
+      subscription.ack(in_range_messages)
+      out_range_messages.each(&:nack!)
+      break if out_range_messages.any? || messages.empty?
+    end
+  ensure
+    queue << nil
+  end
+end
+
+concurrency.times do
+  while buffer = queue.pop
+    STDOUT.write(buffer)
+  end
+end
+STDOUT.flush
