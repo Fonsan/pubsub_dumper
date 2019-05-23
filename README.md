@@ -25,9 +25,9 @@ Or install it yourself as:
 usage: pubsub_dumper topic subscription [start-utc] [stop-utc]
 
 ```bash
-pubsub_dumper topic temporary-subscription
-pubsub_dumper topic temporary-subscription 2019-05-14
-pubsub_dumper topic temporary-subscription 2019-05-14T15:30 2019-05-14T15:45
+pubsub_dumper topic
+pubsub_dumper topic 2019-05-14
+pubsub_dumper topic 2019-05-14T15:30 2019-05-14T15:45
 
 ```
 
