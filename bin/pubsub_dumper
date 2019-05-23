@@ -4,13 +4,17 @@ require 'google/cloud/pubsub'
 
 pubsub = Google::Cloud::PubSub.new
 
-topic_name, subscription_name, start, stop = ARGV
-abort 'usage: pubsub_dumper topic subscription [start-utc] [stop-utc]' unless ARGV.size >= 2
+topic_name, start, stop = ARGV
+abort 'usage: pubsub_dumper topic [start-utc] [stop-utc]' unless ARGV.size >= 1
 
 topic = pubsub.topic(topic_name)
 abort 'no such topic' unless topic
-subscription = topic.subscription(subscription_name)
-subscription ||= topic.subscribe(subscription_name, retain_acked: true)
+subscription_name = "pubsub_dumper_#{rand(1000)}"
+abort 'already exists' if topic.subscription(subscription_name)
+subscription = topic.subscribe(subscription_name, retain_acked: true)
+at_exit do
+  subscription.delete
+end
 
 start_time = start && Time.utc(*start.scan(/\d+/).map(&:to_i))
 start_time ||= Time.new - 604800
